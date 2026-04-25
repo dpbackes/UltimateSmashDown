@@ -27,11 +27,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.isAttacking = false;
         this.facingRight = true;
 
-        // Setup attack hitbox (invisible)
-        this.hitbox = scene.add.rectangle(0, 0, 40, 40, 0xffffff, 0);
+        // Setup attack hitbox (semi-transparent when active)
+        this.hitbox = scene.add.rectangle(0, 0, 50, 40, 0xffffff, 0.5);
         scene.physics.add.existing(this.hitbox);
         this.hitbox.body.setAllowGravity(false);
         this.hitbox.body.enable = false;
+        this.hitbox.setVisible(false);
 
         // Setup input keys
         this.keys = scene.input.keyboard.addKeys(controls);
@@ -69,11 +70,28 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             this.performAttack();
         }
 
-        // Update hitbox position
-        if (this.isAttacking) {
+        // Update hitbox position and check for hits
+        if (this.isAttacking && this.hitbox.body.enable) {
             const offsetX = this.facingRight ? 30 : -30;
             this.hitbox.x = this.x + offsetX;
             this.hitbox.y = this.y;
+
+            this.scene.physics.overlap(this.hitbox, this.scene.players, (h, victim) => {
+                if (victim !== this && !victim.isDead) {
+                    let damage = 10;
+                    let kbX = this.facingRight ? 300 : -300;
+                    let kbY = -200;
+
+                    if (this.currentAttackIsSmash) {
+                        damage = 20;
+                        kbX *= 1.5;
+                        kbY *= 1.5;
+                    }
+
+                    victim.takeDamage(damage, kbX, kbY);
+                    this.hitbox.body.enable = false; // One hit per attack
+                }
+            });
         }
 
         // Check for ring-out
@@ -86,34 +104,20 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.isAttacking = true;
         
         const { left, right, up } = this.keys;
-        const isSmash = left.isDown || right.isDown || up.isDown;
+        this.currentAttackIsSmash = left.isDown || right.isDown || up.isDown;
         
-        this.setTint(isSmash ? 0xff00ff : 0xffff00); // Purple for smash, yellow for basic
+        const attackColor = this.currentAttackIsSmash ? 0xff00ff : 0xffff00;
+        this.setTint(attackColor);
         
-        // Enable hitbox
+        // Enable and show hitbox
         this.hitbox.body.enable = true;
+        this.hitbox.setVisible(true);
+        this.hitbox.setFillStyle(attackColor, 0.5);
         
-        // Check for hits against other players
-        this.scene.physics.overlap(this.hitbox, this.scene.players, (h, victim) => {
-            if (victim !== this && !victim.isDead) {
-                let damage = 10;
-                let kbX = this.facingRight ? 300 : -300;
-                let kbY = -200;
-
-                if (isSmash) {
-                    damage = 20;
-                    kbX *= 1.5;
-                    kbY *= 1.5;
-                }
-
-                victim.takeDamage(damage, kbX, kbY);
-                this.hitbox.body.enable = false; // Prevent multiple hits
-            }
-        });
-        
-        this.scene.time.delayedCall(isSmash ? 300 : 150, () => {
+        this.scene.time.delayedCall(this.currentAttackIsSmash ? 300 : 150, () => {
             this.isAttacking = false;
             this.hitbox.body.enable = false;
+            this.hitbox.setVisible(false);
             this.clearTint();
         });
     }
