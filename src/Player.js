@@ -24,8 +24,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.jumpCount = 0;
         this.maxJumps = 2;
         this.damagePct = 0;
+        this.lives = 3;
         this.isAttacking = false;
         this.facingRight = true;
+        this.isDead = false;
+
+        this.spawnPos = { x, y };
 
         // Setup attack hitbox (semi-transparent when active)
         this.hitbox = scene.add.rectangle(0, 0, 50, 40, 0xffffff, 0.5);
@@ -125,6 +129,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     takeDamage(amount, knockbackX, knockbackY) {
         this.damagePct += amount;
         
+        // Instant KO at 200%
+        if (this.damagePct >= 200) {
+            this.die();
+            return;
+        }
+        
         // Scale knockback based on percentage
         const multiplier = 1 + (this.damagePct / 100);
         this.setVelocity(knockbackX * multiplier, knockbackY * multiplier);
@@ -136,11 +146,28 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     die() {
+        this.lives--;
         this.isDead = true;
         this.setVisible(false);
         this.setActive(false);
         this.body.enable = false;
         
         this.scene.events.emit('player-died', this);
+    }
+
+    respawn() {
+        this.isDead = false;
+        this.damagePct = 0;
+        this.setVisible(true);
+        this.setActive(true);
+        this.body.enable = true;
+        this.setPosition(this.spawnPos.x, this.spawnPos.y);
+        this.setVelocity(0, 0);
+        
+        // Invincibility flicker
+        this.setAlpha(0.5);
+        this.scene.time.delayedCall(2000, () => {
+            this.setAlpha(1);
+        });
     }
 }

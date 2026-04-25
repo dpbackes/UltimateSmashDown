@@ -61,28 +61,35 @@ class GameScene extends Phaser.Scene {
             fill: '#fff'
         }).setOrigin(0.5).setScrollFactor(0);
 
-        // UI for damage percentages
-        this.p1Text = this.add.text(200, 550, 'P1: 0%', {
-            fontSize: '32px',
+        // UI for damage and lives
+        this.p1Text = this.add.text(200, 550, 'P1: 0% | Lives: 3', {
+            fontSize: '24px',
             fill: '#f00'
         }).setOrigin(0.5).setScrollFactor(0);
 
-        this.p2Text = this.add.text(600, 550, 'P2: 0%', {
-            fontSize: '32px',
+        this.p2Text = this.add.text(600, 550, 'P2: 0% | Lives: 3', {
+            fontSize: '24px',
             fill: '#00f'
         }).setOrigin(0.5).setScrollFactor(0);
 
         // Listen for player death
         this.events.on('player-died', (player) => {
-            const winner = player === this.player1 ? 'Player 2' : 'Player 1';
-            this.add.text(400, 300, `${winner} Wins!`, {
-                fontSize: '64px',
-                fill: '#ff0'
-            }).setOrigin(0.5).setScrollFactor(0);
+            if (player.lives > 0) {
+                this.time.delayedCall(1000, () => {
+                    player.respawn();
+                });
+            } else {
+                const winner = player === this.player1 ? 'Player 2' : 'Player 1';
+                this.add.text(400, 300, `GAME OVER\n${winner} Wins!`, {
+                    fontSize: '64px',
+                    fill: '#ff0',
+                    align: 'center'
+                }).setOrigin(0.5).setScrollFactor(0);
 
-            this.time.delayedCall(3000, () => {
-                this.scene.restart();
-            });
+                this.time.delayedCall(5000, () => {
+                    this.scene.restart();
+                });
+            }
         });
     }
 
@@ -91,8 +98,8 @@ class GameScene extends Phaser.Scene {
         this.player2.update();
 
         // Update UI
-        this.p1Text.setText(`P1: ${Math.floor(this.player1.damagePct)}%`);
-        this.p2Text.setText(`P2: ${Math.floor(this.player2.damagePct)}%`);
+        this.p1Text.setText(`P1: ${Math.floor(this.player1.damagePct)}% | Lives: ${this.player1.lives}`);
+        this.p2Text.setText(`P2: ${Math.floor(this.player2.damagePct)}% | Lives: ${this.player2.lives}`);
 
         // Camera follow both players
         if (this.player1.active && this.player2.active) {
